@@ -8,18 +8,14 @@ import { Button } from "@burnt-labs/ui";
 import { useEffect } from "react";
 
 export default function Page(): JSX.Element {
-    // Abstraxion hooks
     const {
         data: { bech32Address },
         isConnected,
         isConnecting,
     } = useAbstraxionAccount();
 
-    // General state hooks
     const [, setShow] = useModal();
 
-    // watch isConnected and isConnecting
-    // only added for testing
     useEffect(() => {
         console.log({ isConnected, isConnecting });
     }, [isConnected, isConnecting]);
@@ -27,7 +23,7 @@ export default function Page(): JSX.Element {
     return (
         <main className="m-auto flex min-h-screen max-w-xs flex-col items-center justify-center gap-4 p-4">
             <h1 className="text-2xl font-bold tracking-tighter text-black dark:text-white">
-                Abstraxion
+                BIRINA
             </h1>
             <Button
                 fullWidth
