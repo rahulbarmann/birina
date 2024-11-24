@@ -5,6 +5,7 @@ import {
     useModal,
 } from "@burnt-labs/abstraxion";
 import { Button } from "@burnt-labs/ui";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function Page(): JSX.Element {
@@ -15,6 +16,7 @@ export default function Page(): JSX.Element {
     } = useAbstraxionAccount();
 
     const [, setShow] = useModal();
+    const router = useRouter();
 
     useEffect(() => {
         console.log({ isConnected, isConnecting });
@@ -47,6 +49,15 @@ export default function Page(): JSX.Element {
                         <div>{bech32Address}</div>
                     </div>
                 </div>
+            )}
+            {bech32Address && (
+                <Button
+                    onClick={() => router.push("/mint")}
+                    fullWidth
+                    structure="base"
+                >
+                    Mint Your NFT
+                </Button>
             )}
             <Abstraxion onClose={() => setShow(false)} />
         </main>
