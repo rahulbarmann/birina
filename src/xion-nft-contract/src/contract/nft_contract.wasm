@@ -1,0 +1,102 @@
+// src/lib.rs
+pub mod contract;
+pub mod error;
+pub mod msg;
+pub mod state;
+
+// src/contract.rs
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
+use cw2::set_contract_version;
+use cw721_base::{
+    ContractError, ExecuteMsg, InstantiateMsg, MintMsg, QueryMsg,
+    Extension,
+};
+
+// Contract name and version for migration info
+const CONTRACT_NAME: &str = "crates.io:xion-nft";
+const CONTRACT_VERSION: &str = "0.1.0";
+
+// This is a marker required by CosmWasm
+#[cfg(not(feature = "library"))]
+pub mod entry {
+    use super::*;
+    
+    #[no_mangle]
+    extern "C" fn interface_version_8() -> () {}
+
+    #[entry_point]
+    pub fn instantiate(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        msg: InstantiateMsg,
+    ) -> Result<Response, ContractError> {
+        super::instantiate(deps, env, info, msg)
+    }
+
+    #[entry_point]
+    pub fn execute(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        msg: ExecuteMsg<Extension>,
+    ) -> Result<Response, ContractError> {
+        super::execute(deps, env, info, msg)
+    }
+
+    #[entry_point]
+    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+        super::query(deps, env, msg)
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    
+    // Initialize the cw721 contract
+    cw721_base::instantiate(deps, _env, info, msg)?;
+    
+    Ok(Response::default())
+}
+
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg<Extension>,
+) -> Result<Response, ContractError> {
+    match msg {
+        ExecuteMsg::Mint(msg) => execute_mint(deps, env, info, msg),
+        _ => cw721_base::entry::execute(deps, env, info, msg),
+    }
+}
+
+pub fn execute_mint(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: MintMsg<Extension>,
+) -> Result<Response, ContractError> {
+    // Verify the minter is authorized
+    let minter = cw721_base::state::Cw721Contract::default().minter.load(deps.storage)?;
+    if info.sender != minter {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Mint the token
+    cw721_base::entry::execute_mint(deps, _env, info, msg)
+}
+
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    cw721_base::entry::query(deps, env, msg)
+}
