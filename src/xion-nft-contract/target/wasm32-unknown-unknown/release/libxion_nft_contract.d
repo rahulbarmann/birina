@@ -1,1 +1,0 @@
-/home/rahul/Documents/Coding/xion/birina/src/xion-nft-contract/target/wasm32-unknown-unknown/release/libxion_nft_contract.rlib: /home/rahul/Documents/Coding/xion/birina/src/xion-nft-contract/src/lib.rs
