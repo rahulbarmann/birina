@@ -4,6 +4,7 @@ import { darkTheme, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { config } from "./config";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "react-hot-toast";
 const queryClient = new QueryClient();
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                         accentColorForeground: "white",
                     })}
                 >
+                    <Toaster />
                     {children}
                 </RainbowKitProvider>
             </QueryClientProvider>
