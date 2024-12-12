@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { forwardRef } from "react";
 
-// components/ui/card.tsx
 export const Card = forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
