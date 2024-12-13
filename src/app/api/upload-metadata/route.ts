@@ -3,16 +3,13 @@
 import { NextResponse } from "next/server";
 import PinataClient from "@pinata/sdk";
 
-// Initialize Pinata client outside the handler
 const pinata = new PinataClient({
     pinataApiKey: process.env.PINATA_API_KEY || "",
     pinataSecretApiKey: process.env.PINATA_SECRET_KEY || "",
 });
 
-// Export the POST handler
 export async function POST(req: Request) {
     try {
-        // Validate environment variables
         if (!process.env.PINATA_API_KEY || !process.env.PINATA_SECRET_KEY) {
             return NextResponse.json(
                 { error: "Pinata configuration missing" },
@@ -20,7 +17,6 @@ export async function POST(req: Request) {
             );
         }
 
-        // Parse the request body
         const body = await req.json();
         const { metadata } = body;
 
@@ -31,10 +27,8 @@ export async function POST(req: Request) {
             );
         }
 
-        // Upload to Pinata
         const result = await pinata.pinJSONToIPFS(metadata);
 
-        // Return success response
         return NextResponse.json({
             success: true,
             tokenURI: `ipfs://${result.IpfsHash}`,
@@ -48,7 +42,6 @@ export async function POST(req: Request) {
     }
 }
 
-// Optionally handle OPTIONS request for CORS
 export async function OPTIONS(req: Request) {
     return NextResponse.json({}, { status: 200 });
 }

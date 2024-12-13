@@ -40,7 +40,6 @@ const GamusaScanner = () => {
         string | null
     >(null); // Track successful transaction
 
-    // Setup contract write functionality
     const { data: simulateData } = useSimulateContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -80,11 +79,9 @@ const GamusaScanner = () => {
                     return;
                 }
 
-                // Set checking claim status
                 setIsCheckingClaim(true);
                 setError("");
 
-                // Check if Gamusa is already claimed
                 try {
                     const response = await fetch(
                         `/api/check-gamusa?gamusaId=${encodeURIComponent(
@@ -143,7 +140,7 @@ const GamusaScanner = () => {
         try {
             setIsUploading(true);
             setError("");
-            setIsTransacting(false); // Reset transaction state
+            setIsTransacting(false);
 
             const metadata = {
                 name: `Gamusa #${scanData.gamusaId}`,
@@ -178,15 +175,11 @@ const GamusaScanner = () => {
             }
 
             setIsUploading(false);
-            setIsTransacting(true); // Start transaction state
+            setIsTransacting(true);
 
-            // Show initial loading toast
             const toastId = toast.loading("Preparing transaction...");
 
             try {
-                // Get wagmi config
-
-                // Execute the contract write using wagmi/core
                 const hash = await writeContract(config, {
                     address: CONTRACT_ADDRESS,
                     abi: CONTRACT_ABI,
@@ -194,18 +187,14 @@ const GamusaScanner = () => {
                     args: [scanData.gamusaId, scanData.location, data.tokenURI],
                 });
 
-                // Update toast to show pending transaction
                 toast.loading("Transaction pending...", { id: toastId });
 
-                // Wait for transaction receipt
                 const receipt = await waitForTransactionReceipt(config, {
                     hash,
                 });
 
-                // Store the successful transaction hash
                 setCurrentTransactionHash(receipt.transactionHash);
 
-                // Show success toast with explorer link
                 toast.success(
                     () => (
                         <div className="flex flex-col gap-2">
@@ -244,47 +233,102 @@ const GamusaScanner = () => {
         }
     };
 
+    const MotifPattern = () => (
+        <svg className="absolute w-full h-full opacity-5" viewBox="0 0 100 100">
+            <pattern
+                id="assamesePattern"
+                x="0"
+                y="0"
+                width="20"
+                height="20"
+                patternUnits="userSpaceOnUse"
+            >
+                <path
+                    d="M10,0 Q15,10 10,20 Q5,10 10,0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="0.5"
+                />
+                <circle cx="10" cy="10" r="2" fill="currentColor" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#assamesePattern)" />
+        </svg>
+    );
+
     return (
         <>
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-100"
+                className="min-h-screen relative overflow-hidden bg-gradient-to-b from-amber-50 via-orange-50 to-rose-50"
+                style={{
+                    fontFamily: "'Poppins', sans-serif",
+                }}
             >
-                <div className="container mx-auto px-4 py-8">
-                    {/* Hero Section */}
+                <div className="fixed inset-0 -z-10">
+                    <MotifPattern />
                     <motion.div
-                        className="text-center mb-12"
+                        animate={{
+                            rotate: [0, 360],
+                        }}
+                        transition={{
+                            duration: 200,
+                            repeat: Infinity,
+                            ease: "linear",
+                        }}
+                        className="absolute inset-0 opacity-10"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,_rgba(255,166,0,0.1),_transparent_70%)]" />
+                    </motion.div>
+                </div>
+
+                <div className="container mx-auto px-4 py-8 relative">
+                    <motion.div
+                        className="text-center mb-12 relative"
                         initial={{ y: -20 }}
                         animate={{ y: 0 }}
                         transition={{ duration: 0.5 }}
                     >
-                        <h1 className="text-5xl font-bold text-orange-800 mb-4">
+                        <motion.div
+                            className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-1 bg-orange-600"
+                            initial={{ width: 0 }}
+                            animate={{ width: 128 }}
+                            transition={{ duration: 0.8, delay: 0.2 }}
+                        />
+
+                        <h1
+                            className="text-6xl font-bold text-orange-800 mb-4"
+                            style={{
+                                fontFamily: "'Cinzel', serif",
+                                background:
+                                    "linear-gradient(to right, #92400e, #ea580c)",
+                                WebkitBackgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                            }}
+                        >
                             Birina: Digital Heritage of Gamusa
                         </h1>
-                        <p className="text-xl text-orange-700 max-w-2xl mx-auto">
+                        <p className="text-xl text-orange-700 max-w-2xl mx-auto font-light">
                             Preserve and authenticate the rich tradition of
                             Assamese Gamusa through blockchain technology
                         </p>
                     </motion.div>
 
-                    {/* Main Card */}
                     <motion.div
                         layout
-                        className="max-w-md mx-auto"
+                        className="max-w-md mx-auto relative"
                         initial={{ scale: 0.9 }}
                         animate={{ scale: 1 }}
                         transition={{ duration: 0.3 }}
                     >
-                        <Card className="bg-white/80 backdrop-blur shadow-xl">
-                            <CardContent className="p-6">
-                                {/* Wallet Connection */}
-                                <div className="mb-6">
+                        <div className="absolute inset-0 bg-gradient-to-r from-orange-200 via-amber-200 to-orange-200 opacity-20 blur-xl rounded-3xl transform -rotate-6" />
+                        <Card className="bg-white/90 backdrop-blur-lg shadow-2xl border-0 rounded-2xl overflow-hidden">
+                            <CardContent className="p-8">
+                                <div className="mb-8 transform hover:scale-102 transition-transform">
                                     <ConnectKitButton theme="retro" />
                                 </div>
 
                                 <AnimatePresence mode="wait">
-                                    {/* Scanner or Data Display */}
                                     {isConnected && (
                                         <>
                                             {showScanner ? (
@@ -302,16 +346,16 @@ const GamusaScanner = () => {
                                                         opacity: 0,
                                                         y: -20,
                                                     }}
-                                                    className="w-80 h-80 rounded-lg overflow-hidden shadow-md mx-auto relative"
+                                                    className="w-80 h-80 rounded-2xl overflow-hidden shadow-xl mx-auto relative"
                                                 >
                                                     <Scanner
                                                         onScan={handleScan}
                                                     />
                                                     {isCheckingClaim && (
-                                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                                            <div className="bg-white p-4 rounded-lg flex flex-col items-center gap-2">
+                                                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                                                            <div className="bg-white/90 p-6 rounded-xl flex flex-col items-center gap-3">
                                                                 <Spinner className="h-8 w-8" />
-                                                                <span className="text-sm">
+                                                                <span className="text-sm font-medium">
                                                                     Verifying
                                                                     Gamusa...
                                                                 </span>
@@ -334,17 +378,16 @@ const GamusaScanner = () => {
                                                         opacity: 0,
                                                         y: -20,
                                                     }}
-                                                    className="space-y-4"
+                                                    className="space-y-6"
                                                 >
                                                     {currentTransactionHash ? (
-                                                        // Success state - show only transaction details and scan another option
                                                         <>
-                                                            <Alert className="bg-green-50">
-                                                                <AlertTitle>
+                                                            <Alert className="bg-green-50/80 backdrop-blur border-green-200">
+                                                                <AlertTitle className="text-lg font-semibold">
                                                                     Successfully
                                                                     Claimed!
                                                                 </AlertTitle>
-                                                                <AlertDescription className="space-y-2">
+                                                                <AlertDescription className="space-y-3">
                                                                     <p>
                                                                         Your
                                                                         Gamusa
@@ -360,7 +403,7 @@ const GamusaScanner = () => {
                                                                         )}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-blue-600 hover:text-blue-800 underline block"
+                                                                        className="text-blue-600 hover:text-blue-800 underline block transition-colors"
                                                                     >
                                                                         View on
                                                                         Block
@@ -380,22 +423,21 @@ const GamusaScanner = () => {
                                                                         null
                                                                     );
                                                                 }}
-                                                                className="w-full"
+                                                                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white shadow-lg"
                                                             >
                                                                 Scan Another
                                                                 Gamusa
                                                             </Button>
                                                         </>
                                                     ) : (
-                                                        // Pre-mint state - show details and mint option
                                                         <>
-                                                            <Alert className="bg-orange-50">
-                                                                <AlertTitle>
+                                                            <Alert className="bg-orange-50/80 backdrop-blur border-orange-200">
+                                                                <AlertTitle className="text-lg font-semibold">
                                                                     Gamusa
                                                                     Details
                                                                 </AlertTitle>
                                                                 <AlertDescription>
-                                                                    <div className="space-y-2 mt-2">
+                                                                    <div className="space-y-3 mt-3">
                                                                         <p>
                                                                             <span className="font-semibold">
                                                                                 ID:
@@ -440,7 +482,7 @@ const GamusaScanner = () => {
                                                                 onClick={
                                                                     handleMint
                                                                 }
-                                                                className="w-full bg-orange-600 hover:bg-orange-700"
+                                                                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white shadow-lg"
                                                                 disabled={
                                                                     isUploading ||
                                                                     isTransacting
@@ -473,7 +515,7 @@ const GamusaScanner = () => {
                                                                     );
                                                                 }}
                                                                 variant="outline"
-                                                                className="w-full"
+                                                                className="w-full border-orange-200 hover:bg-orange-50 transition-colors"
                                                                 disabled={
                                                                     isUploading ||
                                                                     isTransacting
@@ -488,20 +530,19 @@ const GamusaScanner = () => {
                                         </>
                                     )}
 
-                                    {/* Success State */}
                                     {isSuccess && (
                                         <motion.div
                                             key="success"
                                             initial={{ opacity: 0, scale: 0.9 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             exit={{ opacity: 0, scale: 0.9 }}
-                                            className="space-y-4"
+                                            className="space-y-6"
                                         >
-                                            <Alert className="bg-green-50">
-                                                <AlertTitle>
+                                            <Alert className="bg-green-50/80 backdrop-blur border-green-200">
+                                                <AlertTitle className="text-lg font-semibold">
                                                     Success!
                                                 </AlertTitle>
-                                                <AlertDescription className="space-y-2">
+                                                <AlertDescription className="space-y-3">
                                                     <p>
                                                         Your Gamusa NFT has been
                                                         successfully claimed! 🎉
@@ -513,7 +554,7 @@ const GamusaScanner = () => {
                                                             )}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-600 hover:text-blue-800 underline block"
+                                                            className="text-blue-600 hover:text-blue-800 underline block transition-colors"
                                                         >
                                                             View on Block
                                                             Explorer
@@ -526,22 +567,25 @@ const GamusaScanner = () => {
                                                     setShowScanner(true);
                                                     setScanData(null);
                                                 }}
-                                                className="w-full"
+                                                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white shadow-lg"
                                             >
                                                 Scan Another Gamusa
                                             </Button>
                                         </motion.div>
                                     )}
-                                    {/* Error Display */}
+
                                     {error && (
                                         <motion.div
                                             key="error"
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -20 }}
-                                            className="mt-4"
+                                            className="mt-6"
                                         >
-                                            <Alert variant="destructive">
+                                            <Alert
+                                                variant="destructive"
+                                                className="border-red-200 bg-red-50/80 backdrop-blur"
+                                            >
                                                 <AlertTitle>Error</AlertTitle>
                                                 <AlertDescription>
                                                     {error}
@@ -554,17 +598,18 @@ const GamusaScanner = () => {
                         </Card>
                     </motion.div>
 
-                    {/* Decorative Elements */}
-                    <motion.div
-                        className="fixed -z-10 inset-0 overflow-hidden pointer-events-none"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 1 }}
-                    >
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob" />
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-rose-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000" />
-                        <div className="absolute bottom-0 left-1/2 w-64 h-64 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000" />
-                    </motion.div>
+                    <div className="fixed -z-10 inset-0 overflow-hidden pointer-events-none">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.6 }}
+                            transition={{ duration: 1 }}
+                            className="absolute inset-0"
+                        >
+                            <div className="absolute top-0 left-0 w-96 h-96 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
+                            <div className="absolute top-0 right-0 w-96 h-96 bg-rose-200 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
+                            <div className="absolute -bottom-32 left-1/2 w-96 h-96 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000" />
+                        </motion.div>
+                    </div>
                 </div>
             </motion.div>
         </>

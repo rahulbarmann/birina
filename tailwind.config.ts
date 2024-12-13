@@ -29,5 +29,10 @@ export default {
             },
         },
     },
+    variants: {
+        extend: {
+            scale: ["hover"],
+        },
+    },
     plugins: [],
 } satisfies Config;

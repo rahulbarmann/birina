@@ -5,10 +5,8 @@ import { createPublicClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
 
 export async function GET(request: NextRequest) {
-    // Extract Gamusa ID from search params
     const gamusaId = request.nextUrl.searchParams.get("gamusaId");
 
-    // Validate Gamusa ID
     if (!gamusaId) {
         return NextResponse.json(
             { message: "Invalid Gamusa ID" },
@@ -16,16 +14,10 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    // Contract details - MAKE SURE THIS MATCHES YOUR CONTRACT EXACTLY
-
     try {
-        // Create a public client to interact with the blockchain
         const client = createPublicClient({
             chain: baseSepolia,
-            transport: http(
-                // Optional: Specify a specific RPC endpoint if needed
-                "https://sepolia.base.org"
-            ),
+            transport: http("https://sepolia.base.org"),
         });
 
         console.log("Attempting to call contract with:", {
