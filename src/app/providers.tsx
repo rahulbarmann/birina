@@ -1,25 +1,18 @@
 "use client";
 
-import { darkTheme, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { config } from "./config";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 const queryClient = new QueryClient();
+import { ConnectKitProvider } from "connectkit";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
-                <RainbowKitProvider
-                    theme={darkTheme({
-                        accentColor: "#ea580c", // orange-600
-                        accentColorForeground: "white",
-                    })}
-                >
-                    <Toaster />
-                    {children}
-                </RainbowKitProvider>
+                <Toaster />
+                <ConnectKitProvider>{children}</ConnectKitProvider>
             </QueryClientProvider>
         </WagmiProvider>
     );
