@@ -1,8 +1,11 @@
+/* eslint-disable react/jsx-no-undef */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Scanner, IDetectedBarcode } from "@yudiel/react-qr-scanner";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -12,11 +15,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
 import { CONTRACT_ABI, CONTRACT_ADDRESS } from "@/lib/contract";
 import toast from "react-hot-toast";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+    useWriteContract,
+    useWaitForTransactionReceipt,
+    useSimulateContract,
+    useWalletClient,
+} from "wagmi";
 import { config } from "./config";
-import { useAccount, useSimulateContract } from "wagmi";
+import { useAccount } from "wagmi";
 import { writeContract, waitForTransactionReceipt } from "@wagmi/core";
 import { ConnectKitButton } from "connectkit";
+import { createNexusClient, createBicoPaymasterClient } from "@biconomy/sdk";
+import { baseSepolia } from "viem/chains";
+import { http, encodeFunctionData, parseEther } from "viem";
 
 const QRDataSchema = z.object({
     gamusaId: z.string().min(1, "Gamusa ID is required"),
@@ -28,17 +39,25 @@ const QRDataSchema = z.object({
 
 type QRData = z.infer<typeof QRDataSchema>;
 
+// Biconomy configuration
+const BUNDLER_URL =
+    "https://bundler.biconomy.io/api/v2/84532/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44";
+const PAYMASTER_URL =
+    "https://paymaster.biconomy.io/api/v1/84532/yV3-ZyMDk.8d7f2347-7440-4cf4-9238-e0a79cb4c0f5";
+
 const GamusaScanner = () => {
     const [scanData, setScanData] = useState<QRData | null>(null);
     const [showScanner, setShowScanner] = useState(true);
     const [error, setError] = useState<string>("");
     const [isUploading, setIsUploading] = useState(false);
     const [isCheckingClaim, setIsCheckingClaim] = useState(false);
-    const { isConnected } = useAccount();
-    const [isTransacting, setIsTransacting] = useState(false); // New state for transaction status
+    const { address, isConnected } = useAccount();
+    const { data: walletClient } = useWalletClient();
+    const [isTransacting, setIsTransacting] = useState(false);
     const [currentTransactionHash, setCurrentTransactionHash] = useState<
         string | null
-    >(null); // Track successful transaction
+    >(null);
+    const [nexusClient, setNexusClient] = useState<any>(null);
 
     const { data: simulateData } = useSimulateContract({
         address: CONTRACT_ADDRESS,
@@ -46,13 +65,39 @@ const GamusaScanner = () => {
         functionName: "claimGamusa",
         args: scanData ? [scanData.gamusaId, scanData.location, ""] : undefined,
     });
-
     const {
         isPending: isMinting,
         isSuccess,
         error: mintingError,
         data: txHash,
+        writeContract: write,
     } = useWriteContract();
+
+    useEffect(() => {
+        const initializeBiconomy = async () => {
+            if (!address || !walletClient) return;
+            try {
+                const paymaster = createBicoPaymasterClient({
+                    paymasterUrl: PAYMASTER_URL,
+                });
+
+                const client = await createNexusClient({
+                    signer: walletClient,
+                    chain: baseSepolia,
+                    transport: http(),
+                    bundlerTransport: http(BUNDLER_URL),
+                    paymaster,
+                });
+
+                setNexusClient(client);
+            } catch (error) {
+                console.error("Error initializing Biconomy:", error);
+                setError("Failed to initialize gasless transaction support");
+            }
+        };
+
+        initializeBiconomy();
+    }, [address, walletClient]);
 
     const getBlockExplorerUrl = (hash: string) => {
         const baseExplorerUrl = "https://sepolia.basescan.org";
@@ -68,7 +113,6 @@ const GamusaScanner = () => {
                 const parsedData = JSON.parse(qrCode);
                 console.log("Parsed Data:", parsedData);
 
-                // Validate QR data against schema
                 const validationResult = QRDataSchema.safeParse(parsedData);
 
                 if (!validationResult.success) {
@@ -132,7 +176,7 @@ const GamusaScanner = () => {
     };
 
     const handleMint = async () => {
-        if (!scanData || !simulateData?.request) {
+        if (!scanData || !nexusClient) {
             setError("Missing required data for minting");
             return;
         }
@@ -176,24 +220,71 @@ const GamusaScanner = () => {
 
             setIsUploading(false);
             setIsTransacting(true);
-
             const toastId = toast.loading("Preparing transaction...");
 
             try {
-                const hash = await writeContract(config, {
-                    address: CONTRACT_ADDRESS,
-                    abi: CONTRACT_ABI,
-                    functionName: "claimGamusa",
-                    args: [scanData.gamusaId, scanData.location, data.tokenURI],
-                });
+                if (nexusClient) {
+                    // Biconomy gasless transaction path
+                    toast.loading("Gasless transaction starting...", {
+                        id: toastId,
+                    });
 
-                toast.loading("Transaction pending...", { id: toastId });
+                    const callData = encodeFunctionData({
+                        abi: CONTRACT_ABI,
+                        functionName: "claimGamusa",
+                        args: [
+                            scanData.gamusaId,
+                            scanData.location,
+                            data.tokenURI,
+                        ],
+                    });
 
-                const receipt = await waitForTransactionReceipt(config, {
-                    hash,
-                });
+                    const tx = {
+                        to: CONTRACT_ADDRESS,
+                        data: callData,
+                        value: parseEther("0"),
+                    };
 
-                setCurrentTransactionHash(receipt.transactionHash);
+                    const userOpResponse = await nexusClient.sendTransaction({
+                        calls: [tx],
+                    });
+
+                    const receipt =
+                        await nexusClient.waitForUserOperationReceipt({
+                            hash: userOpResponse,
+                            timeout: 60000,
+                        });
+
+                    setCurrentTransactionHash(receipt.receipt.transactionHash);
+                } else if (simulateData) {
+                    const simulation = simulateData as unknown as {
+                        request?: {
+                            abi: typeof CONTRACT_ABI;
+                            address: typeof CONTRACT_ADDRESS;
+                            functionName: "claimGamusa";
+                            args: [string, string, string];
+                        };
+                    };
+
+                    if (!simulation.request)
+                        throw new Error("Simulation failed");
+
+                    const hash = await writeContract(config, {
+                        ...simulation.request,
+                        account: address,
+                    });
+
+                    toast.loading("Transaction pending...", { id: toastId });
+
+                    const receipt = await waitForTransactionReceipt(config, {
+                        hash,
+                        timeout: 60_000,
+                    });
+
+                    setCurrentTransactionHash(receipt.transactionHash);
+                } else {
+                    throw new Error("No valid transaction method available");
+                }
 
                 toast.success(
                     () => (
@@ -201,7 +292,7 @@ const GamusaScanner = () => {
                             <span>Successfully minted your Gamusa NFT!</span>
                             <a
                                 href={getBlockExplorerUrl(
-                                    receipt.transactionHash
+                                    currentTransactionHash!
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -214,6 +305,7 @@ const GamusaScanner = () => {
                     { id: toastId, duration: 5000 }
                 );
             } catch (txError) {
+                console.error("Transaction error:", txError);
                 toast.error("Transaction failed. Please try again.", {
                     id: toastId,
                 });
@@ -233,28 +325,6 @@ const GamusaScanner = () => {
         }
     };
 
-    const MotifPattern = () => (
-        <svg className="absolute w-full h-full opacity-5" viewBox="0 0 100 100">
-            <pattern
-                id="assamesePattern"
-                x="0"
-                y="0"
-                width="20"
-                height="20"
-                patternUnits="userSpaceOnUse"
-            >
-                <path
-                    d="M10,0 Q15,10 10,20 Q5,10 10,0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="0.5"
-                />
-                <circle cx="10" cy="10" r="2" fill="currentColor" />
-            </pattern>
-            <rect width="100%" height="100%" fill="url(#assamesePattern)" />
-        </svg>
-    );
-
     return (
         <>
             <motion.div
@@ -266,7 +336,7 @@ const GamusaScanner = () => {
                 }}
             >
                 <div className="fixed inset-0 -z-10">
-                    <MotifPattern />
+                    {/* <MotifPattern /> */}
                     <motion.div
                         animate={{
                             rotate: [0, 360],
